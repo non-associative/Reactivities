@@ -8,11 +8,12 @@ var corsPolicy = "CorsPolicy";
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// add cross-origin resource sharing policy 
 builder.Services.AddCors(options => {
     options.AddPolicy(name: corsPolicy, 
     policy => {
-        policy.WithOrigins("http://localhost:3000");
+        policy.AllowAnyMethod().AllowAnyHeader().WithOrigins("http://localhost:3000");
+        // policy.WithOrigins("http://localhost:3000");
     });
 });
 
@@ -49,11 +50,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-/* 
-Cors is Cross-Origin Requests;
-以https://learn.microsoft.com/en-us/aspnet/core/security/cors?view=aspnetcore-7.0为例，
-这里的Origin就是https://learn.microsoft.com
-*/ 
 app.UseCors(corsPolicy);
 
 app.UseAuthorization();

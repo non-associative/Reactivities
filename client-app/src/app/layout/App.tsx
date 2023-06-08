@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import { Container, List, ListItem } from 'semantic-ui-react';
-import { Header, Icon, Image } from 'semantic-ui-react'
 import { Activity } from '../models/Activity';
 import Navbar from './Navbar';
 import ActivityDashboard from '../../features/activities/ActivityDashboard.tsx';
 import { v4 as uuidv4 } from 'uuid';
+import agent from '../api/agent';
+import LoadingComponent from './LoadingComponent';
+import { response } from 'express';
 
 function App() {
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -13,52 +14,74 @@ function App() {
   const [selectedActivity, setSelectedActivity] = useState<Activity | undefined>(undefined)
   // editMode control if the ActivityForm Component is displayed
   const [editMode, setEditMode] = useState(false);
+  const [loading, setLoading] = useState(true);
+  // control loading animation for the submit button
+  const [submitting, setSubmitting] = useState(false);
+
 
   useEffect(() => {
-    axios.get<Activity[]>("https://localhost:7264/api/activities").then(response => {
-      setActivities(response.data);
+    agent.Activities.list().then(response => {
+      let activities: Activity[] = [];
+      // format date string
+      response.forEach(activity => {
+        activity.date = activity.date.split('T')[0];
+        activities.push(activity);
+      })
+
+      // App component will be re-rendered when their state such as loading changes
+      setLoading(false);
+      setActivities(response);
     })
   }, []);
 
   const handleSelectActivity  = (id: string) => setSelectedActivity(activities.find(act => act.id === id));
   const handleCancelSelectActivity = () => setSelectedActivity(undefined);
-
   const handleCloseForm = () => setEditMode(false);
-
   const handleOpenForm = (id? : string) => {
     id ? handleSelectActivity(id) : handleCancelSelectActivity();
     setEditMode(true);
   }
   
   const handleCreateOrEditActivity = (activity: Activity) => {
-    // edit Activity when activity.id is true, create Activity when activity.id is false
-    activity.id ? setActivities([...activities.filter(act => act.id !== activity.id), activity]) 
-      : setActivities([...activities, {...activity, id: uuidv4()}]);
+    setSubmitting(true);
+    if(activity.id) { // edit activity
+      agent.Activities.update(activity).then(() => {
+        setActivities([...activities.filter(act => act.id !== activity.id), activity])
+        // close ActivityForm, open ActivityDetails
+        setSelectedActivity(activity)
+        setEditMode(false);
+        setSubmitting(false);
+      })
+    }else { // crreate activity
+      activity.id = uuidv4();
+      agent.Activities.create(activity).then(() => {
+        setActivities([...activities, activity])
+        // close ActivityForm, open ActivityDetails
+        setSelectedActivity(activity)
+        setEditMode(false);
+        setSubmitting(false);
+      })
+    }
 
-    // close ActivityForm, open ActivityDetails
-    setEditMode(false);
-    setSelectedActivity(activity);
+
   }
 
   const handleDeleteActivity = (id: string) => {
-    setActivities([...activities.filter(act => act.id !== id)]);
+    setSubmitting(true);
+    agent.Activities.delete(id).then(() => {
+      setActivities([...activities.filter(act => act.id !== id)]);
+      setSubmitting(false);
+
+      setEditMode(false);
+      setSelectedActivity(undefined);
+    });
   }
 
+  if(loading) return (<LoadingComponent content='Loading app' />)
+  
   return (
     <>
         <Navbar openForm={handleOpenForm}/>
-        {/* <Header icon='users' content='Reactivities' /> */}
-        {/* <ul> 
-          {
-            // 注意这里的id和title都是小写，即使Activity类中定义的Properties是大写
-           activities.map((activity: any) => (
-           <li key={activity.id}>
-              {activity.title}
-              </li>
-              ))
-          }
-          </ul> 
-        */}
         <Container style={{marginTop: '7em'}}>
           <ActivityDashboard activities={activities}
           selectedActivity={selectedActivity}
@@ -69,6 +92,7 @@ function App() {
           closeForm={handleCloseForm}
           createOrEdit={handleCreateOrEditActivity}
           deleteActivity={handleDeleteActivity}
+          submitting={submitting}
           />
         </Container>
 
