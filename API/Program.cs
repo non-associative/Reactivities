@@ -1,3 +1,6 @@
+using Application.Activities;
+using Application.Core;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Persistence;
 
@@ -12,6 +15,9 @@ builder.Services.AddCors(options => {
         policy.WithOrigins("http://localhost:3000");
     });
 });
+
+builder.Services.AddMediatR(typeof(List.Handler).Assembly);
+builder.Services.AddAutoMapper(typeof(MappingProfiles).Assembly);
 
 builder.Services.AddDbContext<DataContext>(opts => opts.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnectionString")));
 builder.Services.AddControllers();
